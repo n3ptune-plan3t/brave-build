@@ -39,6 +39,10 @@ jobs:
       - name: Build the package
         run: sudo -u builduser makepkg -sf --noconfirm
 
+      - name: Rename artifact to remove invalid characters
+        run: |
+          mv brave-bin-1:1.81.136-1-x86_64.pkg.tar.zst brave-bin-1-1.81.136-1-x86_64.pkg.tar.zst
+
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
