@@ -57,14 +57,47 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
       - name: Download built package from artifact
         uses: actions/download-artifact@v4
         with:
           name: package
+          path: repo
 
-      - name: Create Release and Upload Asset
+      - name: Install Arch tools for repo-add
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y arch-install-scripts
+
+      - name: Create or update repository database
+        run: |
+          mkdir -p gh-pages/repo
+          mv repo/*.pkg.tar.zst gh-pages/repo/
+          cd gh-pages/repo
+          repo-add myrepo.db.tar.gz *.pkg.tar.zst
+          # Ensure .files database is created
+          repo-add -f myrepo.files.tar.gz *.pkg.tar.zst
+
+      - name: Commit and push to gh-pages branch
+        run: |
+          cd gh-pages
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add repo/*
+          git commit -m "Update repository with new package for ${{ github.ref_name }}"
+          git push origin gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.pkg.tar.zst"
+          name: Release ${{ github.ref_name }}
+          files: repo/*.pkg.tar.zst
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
