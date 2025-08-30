@@ -69,6 +69,9 @@ jobs:
           name: package
           path: repo
 
+      - name: Install pacman-contrib
+        run: sudo pacman -Sy --noconfirm pacman-contrib
+
       - name: Install Arch tools for repo-add
         run: |
           sudo apt-get update
