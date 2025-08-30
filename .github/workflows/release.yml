@@ -41,7 +41,7 @@ jobs:
 
       - name: Rename artifact to remove invalid characters
         run: |
-          mv brave-bin-1:1.81.136-1-x86_64.pkg.tar.zst brave-bin-1-1.81.136-1-x86_64.pkg.tar.zst
+          mv brave-bin-1:1.81.137-1-x86_64.pkg.tar.zst brave-bin-1-1.81.137-1-x86_64.pkg.tar.zst
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
