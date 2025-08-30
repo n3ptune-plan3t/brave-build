@@ -1,4 +1,3 @@
-# .github/workflows/release.yml
 name: Build and Release Brave Browser
 
 on:
@@ -9,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build Arch Package
+    name: Build Arch Package and Create Repository
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
@@ -22,14 +21,14 @@ jobs:
       - name: Install build and runtime dependencies
         run: |
           pacman -Syu --noconfirm
-          # Per your instructions, explicitly install build AND runtime dependencies
           pacman -S --noconfirm --needed \
             base-devel \
             alsa-lib \
             gtk3 \
             libxss \
             nss \
-            ttf-font
+            ttf-font \
+            pacman-contrib
 
       - name: Set correct permissions
         run: |
@@ -41,50 +40,41 @@ jobs:
 
       - name: Rename artifact to remove invalid characters
         run: |
-          mv brave-bin-1:1.81.137-1-x86_64.pkg.tar.zst brave-bin-1-1.81.137-1-x86_64.pkg.tar.zst
+          mv brave-bin-1:*.pkg.tar.zst brave-bin-1-$(echo *.pkg.tar.zst | sed 's/.*brave-bin-1:\([0-9.-]*\)-x86_64.*/\1/')-x86_64.pkg.tar.zst
 
-      - name: Upload package artifact
+      - name: Create or update repository database
+        run: |
+          mkdir -p repo
+          mv *.pkg.tar.zst repo/
+          cd repo
+          repo-add myrepo.db.tar.gz *.pkg.tar.zst
+          repo-add -f myrepo.files.tar.gz *.pkg.tar.zst
+
+      - name: Upload package and repository artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: package
-          path: "*.pkg.tar.zst"
+          name: repo
+          path: repo/
 
   release:
-    name: Create GitHub Release
+    name: Create GitHub Release and Update GitHub Pages
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
           ref: gh-pages
           path: gh-pages
 
-      - name: Download built package from artifact
+      - name: Download repository artifacts
         uses: actions/download-artifact@v4
         with:
-          name: package
-          path: repo
-
-      - name: Install pacman-contrib
-        run: sudo pacman -Sy --noconfirm pacman-contrib
-
-      - name: Install Arch tools for repo-add
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y arch-install-scripts
-
-      - name: Create or update repository database
-        run: |
-          mkdir -p gh-pages/repo
-          mv repo/*.pkg.tar.zst gh-pages/repo/
-          cd gh-pages/repo
-          repo-add myrepo.db.tar.gz *.pkg.tar.zst
-          # Ensure .files database is created
-          repo-add -f myrepo.files.tar.gz *.pkg.tar.zst
+          name: repo
+          path: gh-pages/repo
 
       - name: Commit and push to gh-pages branch
         run: |
@@ -98,9 +88,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v2
+        uses: actions/upload-artifact@v4
         with:
-          name: Release ${{ github.ref_name }}
-          files: repo/*.pkg.tar.zst
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: package
+          path: gh-pages/repo/*.pkg.tar.zst
